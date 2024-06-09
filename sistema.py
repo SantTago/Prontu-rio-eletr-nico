@@ -6,6 +6,9 @@ from tkcalendar import DateEntry
 from PIL import Image, ImageTk
 import os
 from datetime import datetime
+import locale
+
+locale.setlocale(locale.LC_TIME, 'pt_BR.utf8')
 
 class ProntuarioEletronico:
     def __init__(self, root):
@@ -86,7 +89,7 @@ class ProntuarioEletronico:
         self.save_button.grid(row=24, column=0, columnspan=2, padx=10, pady=10, sticky='e')
         
         # Pesquisar Paciente
-        self.search_label = ttk.Label(self.scrollable_frame, text="Pesquisar Paciente:", background="#FFDB55")
+        self.search_label = ttk.Label(self.scrollable_frame, text="Pesquisar Paciente:", background="#D9EAD3")
         self.search_label.grid(row=25, column=0, padx=10, pady=10, sticky='e')
         self.search_entry = ttk.Entry(self.scrollable_frame, width=50)
         self.search_entry.grid(row=25, column=1, padx=10, pady=10)
@@ -106,12 +109,19 @@ class ProntuarioEletronico:
         file_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Arquivo", menu=file_menu)
         file_menu.add_command(label="Exportar", command=self.exportar_prontuario)
+        file_menu.add_command(label="Imprimir", command=self.imprimir_prontuario)
         file_menu.add_separator()
         file_menu.add_command(label="Sair", command=root.quit)
 
         help_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ajuda", menu=help_menu)
         help_menu.add_command(label="Sobre", command=self.sobre)
+
+        # Evento para rolar com a bolinha do mouse
+        self.root.bind_all("<MouseWheel>", self._on_mouse_wheel)
+
+    def _on_mouse_wheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def center_window(self, width, height):
         screen_width = self.root.winfo_screenwidth()
@@ -137,7 +147,7 @@ class ProntuarioEletronico:
     def create_label_dateentry(self, text, row):
         label = ttk.Label(self.scrollable_frame, text=text, background="#D9EAD3")
         label.grid(row=row, column=0, padx=10, pady=5, sticky='e')
-        date_entry = DateEntry(self.scrollable_frame, width=47, background='darkblue', foreground='white', borderwidth=2, date_pattern='dd/MM/yyyy')
+        date_entry = DateEntry(self.scrollable_frame, width=47, background='darkblue', foreground='white', borderwidth=2, date_pattern='dd/MM/yyyy', locale='pt_BR')
         date_entry.grid(row=row, column=1, padx=10, pady=5)
         setattr(self, f"entry_{row}", date_entry)
     
@@ -148,14 +158,14 @@ class ProntuarioEletronico:
         frame.grid(row=row, column=1, padx=10, pady=5)
         ddd_entry = ttk.Entry(frame, width=5)
         ddd_entry.pack(side="left")
-        number_entry = ttk.Entry(frame, width=42)
-        number_entry.pack(side="left", padx=5)
+        number_entry = ttk.Entry(frame, width=44)
+        number_entry.pack(side="left")
         setattr(self, f"ddd_{row}", ddd_entry)
         setattr(self, f"number_{row}", number_entry)
 
     def salvar_prontuario(self):
-        # Coleta de dados
         nome_paciente = self.entry_1.get().strip()
+
         dados = {
             "Data de Nascimento": self.entry_2.get().strip(),
             "Idade": self.entry_3.get().strip(),
@@ -218,35 +228,51 @@ class ProntuarioEletronico:
     def mostrar_prontuario(self, nome_paciente, content):
         window = tk.Toplevel(self.root)
         window.title(f"Prontuário de {nome_paciente}")
+        window.state("zoomed")
+
+        # Canvas e barra de rolagem
+        canvas = tk.Canvas(window)
+        scroll_y = tk.Scrollbar(window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scroll_y.set)
         
-        prontuario_text = tk.Text(window, height=20, width=80, bg="#FFFFFF", fg="#000000", bd=2, relief="solid")
-        prontuario_text.insert(tk.END, content)
-        
-        # Destacar os nomes dos campos em vermelho
-        prontuario_text.tag_configure("campo", foreground="red")
-        for key in [
-            "Data de Nascimento", "Idade", "Sexo (M/F)", "Data da Avaliação", "Data do Início", 
-            "Diagnóstico de Origem", "Responsável pela Criança", "Telefone (DDD)", "Telefone (Número)", 
-            "Gravidez (saúde da mãe, movimentos fetais, parto, peso ao nascer, gestação\nprogramada, pré-natal, intercorrências)", 
-            "Tônus", "Padrões Motores e Posturais", "AVD's", "Avaliação postural", "Avaliação do controle da função motora", 
-            "Medicação", "Cirurgia prévia", "Órteses", "Exames complementares", "Objetivo / preocupação dos Pais", 
-            "Função que deseja como meta", "Objetivos", "Tratamento"
-        ]:
-            start_idx = '1.0'
-            while True:
-                start_idx = prontuario_text.search(key, start_idx, tk.END)
-                if not start_idx:
-                    break
-                end_idx = f"{start_idx}+{len(key)}c"
-                prontuario_text.tag_add("campo", start_idx, end_idx)
-                start_idx = end_idx
-        
-        prontuario_text.pack()
-        
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll_y.pack(side="right", fill="y")
+
+        # Divisão em linhas
+        linhas = content.split('\n')
+        row = 0
+
+        for linha in linhas:
+            if linha.strip() == "":
+                continue
+            if ':' in linha:
+                campo, valor = linha.split(':', 1)
+                campo_label = tk.Label(scrollable_frame, text=campo + ":", fg="red", anchor="w", justify="left")
+                campo_label.grid(row=row, column=0, sticky="w")
+                valor_label = tk.Label(scrollable_frame, text=valor.strip(), anchor="w", justify="left", wraplength=500)
+                valor_label.grid(row=row, column=1, sticky="w")
+            else:
+                separator = tk.Label(scrollable_frame, text=linha, anchor="w", justify="left")
+                separator.grid(row=row, column=0, columnspan=2, sticky="w")
+            row += 1
+
+        # Evento para rolar com a bolinha do mouse
+        window.bind_all("<MouseWheel>", self._on_mouse_wheel)
+
         window.transient(self.root)
         window.grab_set()
         self.root.wait_window(window)
-    
+
     def limpar_campos(self):
         for i in range(1, 24):
             if hasattr(self, f"entry_{i}"):
@@ -255,7 +281,8 @@ class ProntuarioEletronico:
                 getattr(self, f"text_{i}").delete("1.0", tk.END)
         self.ddd_9.delete(0, tk.END)
         self.number_9.delete(0, tk.END)
-    
+        self.search_entry.delete(0, tk.END)
+
     def exportar_prontuario(self):
         filename = filedialog.asksaveasfilename(defaultextension=".txt",
                                                 filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
@@ -263,7 +290,13 @@ class ProntuarioEletronico:
             with open(filename, "w") as file:
                 file.write("Prontuário exportado!")
             messagebox.showinfo("Exportar", f"Prontuário exportado com sucesso para {filename}!")
-    
+
+    def imprimir_prontuario(self):
+        filename = filedialog.askopenfilename(defaultextension=".txt",
+                                              filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+        if filename:
+            os.startfile(filename, "print")
+
     def ver_arquivos(self):
         arquivos = [f for f in os.listdir() if f.endswith('.txt')]
         if not arquivos:
@@ -272,14 +305,40 @@ class ProntuarioEletronico:
 
         window = tk.Toplevel(self.root)
         window.title("Arquivos de Prontuário")
+        window.state("zoomed")
 
-        listbox = tk.Listbox(window, selectmode=tk.SINGLE, width=80, height=20)
+        # Canvas e barra de rolagem
+        canvas = tk.Canvas(window)
+        scroll_y = tk.Scrollbar(window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scroll_y.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scroll_y.pack(side="right", fill="y")
+
+        listbox = tk.Listbox(scrollable_frame, selectmode=tk.SINGLE, width=80, height=20)
         for arquivo in arquivos:
             listbox.insert(tk.END, arquivo)
         listbox.pack()
 
-        view_button = ttk.Button(window, text="Abrir", command=lambda: self.abrir_arquivo(listbox))
+        view_button = ttk.Button(scrollable_frame, text="Abrir", command=lambda: self.abrir_arquivo(listbox))
         view_button.pack(pady=10)
+
+        # Botão flutuante de impressão
+        print_button = ttk.Button(scrollable_frame, text="Imprimir", command=self.imprimir_prontuario)
+        print_button.pack(pady=10)
+
+        # Evento para rolar com a bolinha do mouse
+        window.bind_all("<MouseWheel>", self._on_mouse_wheel)
 
         window.transient(self.root)
         window.grab_set()
@@ -295,7 +354,7 @@ class ProntuarioEletronico:
         self.mostrar_prontuario(filename.replace(".txt", ""), content)
 
     def sobre(self):
-        messagebox.showinfo("Sobre", "Prontuário Eletrônico\nVersão 1.0\nDesenvolvido por [Seu Nome]")
+        messagebox.showinfo("Sobre", "Prontuário Eletrônico\nVersão 1.0\nDesenvolvido por [Tiago viana da cruz 88993464285]")
 
 if __name__ == "__main__":
     root = tk.Tk()
