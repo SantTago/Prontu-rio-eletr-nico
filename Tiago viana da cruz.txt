@@ -1,0 +1,28 @@
+
+
+----------------------------------------
+Data/Hora: 2024-06-09 20:56:10
+Data de Nascimento: 09/06/2018
+Idade: 26
+Sexo (M/F): F
+Data da Avaliação: 26/06/2024
+Data do Início: 19/06/2026
+Diagnóstico de Origem: Diagnoticada com Alguma coisa
+Responsável pela Criança: Maria pereira de alguma coisa
+Telefone (DDD): 88
+Telefone (Número): 993464285
+Gravidez (saúde da mãe, movimentos fetais, parto, peso ao nascer, gestação
+programada, pré-natal, intercorrências): gravidez 1 vez, movimentos fetais sim, peso ao nascer, ....
+Tônus: pescoço sim, tronco... não
+Padrões Motores e Posturais: a criaça nao possue testa
+AVD's: testando espaço do sitema mais um bom dia
+Avaliação postural: a crianaça possue OBS: ..............
+Avaliação do controle da função motora: Testando espaçõ................
+Medicação: nao
+Cirurgia prévia: sim
+Órteses: sim
+Exames complementares: nao
+Objetivo / preocupação dos Pais: o problema e assim assim testando espaço........
+Função que deseja como meta: se recuperar o andar ... testando esse espaço
+Objetivos: a criança nao consegui fazer tal coisa e queria ........... testando esse campo
+Tratamento: tratamento a ser feito sera o tratamento tal ... testando esse espaço.....
